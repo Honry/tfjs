@@ -19,7 +19,7 @@ import * as path from 'path';
 import {getLibPaths, getPlatform} from './utils';
 import type {TFLiteDelegatePlugin} from '@tensorflow/tfjs-tflite-node';
 
-const libPaths = getLibPaths('libwebnn_external_delegate_obj', path.join(__dirname, '../cc_lib'));
+const libPaths = getLibPaths('webnn_external_delegate_obj', path.join(__dirname, '../cc_lib'));
 
 export class WebNNDelegate implements TFLiteDelegatePlugin {
   readonly name: 'WebNNDelegate';
