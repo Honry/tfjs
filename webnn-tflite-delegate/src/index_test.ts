@@ -49,7 +49,7 @@ describe('webnn delegate', () => {
     // Reshape so we can pass it to predict.
     wine = tfnode.reshape(resized, [-1, 224, 224, 3]);
     labels = fs.readFileSync('./test_model/mobilenetv2_labels.txt', 'utf-8')
-      .split('\n');
+      .split(/\r?\n/);
   });
 
   it('runs a mobilenetv2 model', () => {
