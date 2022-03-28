@@ -32,7 +32,7 @@ export class WebNNDelegate implements TFLiteDelegatePlugin {
     if (!libPath) {
       throw new Error(`Platform ${platform} is not supported`);
     }
-    //Support 'webnn_device' option: (0:default, 1:gpu, 2:cpu)
+    // Support 'webnn_device' option: (0:default, 1:gpu, 2:cpu)
     this.options = options;
     this.node = {
       path: libPath,

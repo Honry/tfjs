@@ -30,8 +30,8 @@ describe('webnn delegate', () => {
 
   beforeEach(async () => {
     model = await loadTFLiteModel(modelPath, {
-      //webnn_device option: (0:default, 1:gpu, 2:cpu)
-      delegates: [new WebNNDelegate([["webnn_device", "1"]])],
+      // 'webnn_device' option: (0:default, 1:gpu, 2:cpu)
+      delegates: [new WebNNDelegate([['webnn_device', '1']])],
     });
     // Pre-processing is referred from
     // https://github.com/tensorflow/tfjs-models/blob/master/mobilenet/src/index.ts
