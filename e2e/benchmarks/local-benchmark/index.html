@@ -288,7 +288,7 @@ limitations under the License.
     const parameterTable = document.querySelector('#parameters tbody');
     const modelInputsTable = document.querySelector('#modelInputs tbody');
 
-    let model, tfliteModel, tfliteWebNNModel, predict, chartWidth;
+    let model, tfliteModel, tfliteWebNNModelWorker, predict, chartWidth;
 
     async function showMsg(message) {
       if (message != null) {
@@ -422,7 +422,7 @@ limitations under the License.
       if (isTflite()) {
         inputs = tfliteModel.inputs;
       } else if(isTfliteWebNN()) {
-        inputs = getTfliteWebNNModelInputs();
+        inputs = await getTfliteWebNNModelInputs();
       } else {
         inputs = model.inputs;
       }
@@ -532,7 +532,7 @@ limitations under the License.
       if (isTflite()) {
         inputs = tfliteModel.inputs;
       } else if(isTfliteWebNN()) {
-        inputs = getTfliteWebNNModelInputs();
+        inputs = await getTfliteWebNNModelInputs();
       } else {
         inputs = model.inputs;
       }
@@ -557,7 +557,7 @@ limitations under the License.
           });
         }
       }
-      predict = benchmark.predictFunc(inputSize);
+      predict = await benchmark.predictFunc(inputSize);
       const elapsed = performance.now() - start;
 
       await showMsg(null);
@@ -1068,7 +1068,7 @@ limitations under the License.
       const enableWebNNDelegate = state.flags['ENABLE_WEBNN_DELEGATE'];
       const webnnDevicePreference =state.flags['WEBNN_DEVICE_PREFERENCE'];
       const webnnDevice = {'gpu': 1, 'cpu': 2};
-      tfliteWebNNModel = await benchmark.loadTfliteWebNN(enableProfiling, numThreads,
+      await benchmark.loadTfliteWebNN(enableProfiling, numThreads,
           enableWebNNDelegate, webnnDevice[webnnDevicePreference]);
     }
 
