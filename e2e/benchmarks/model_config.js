@@ -126,13 +126,14 @@ const benchmarks = {
       if (isTflite()) {
         return () => tfliteModel.predict(input);
       } else if (isTfliteWebNN()) {
-        const inputs = getTfliteWebNNModelInputs();
-        const inputTensorArray = input.dataSync();
-        const inputBuffer = inputs[0].data();
-        const inputData = new Float32Array(inputBuffer.length);
-        inputData.set(inputTensorArray);
-        inputBuffer.set(inputData);
-        return () => tfliteWebNNModel.Infer();
+        return async () => {
+          tfliteWebNNModelWorker.postMessage({ actionType: 'infer', payload: { input } });
+          const result = await new Promise((resolve, reject) => {
+            tfliteWebNNModelWorker.onmessage =  event => {
+              resolve(event.data);
+            };
+          });
+        };
       } else {
         return predictFunction(model, input);
       }
@@ -463,44 +464,23 @@ const benchmarks = {
   },
 };
 
-function getTfliteWebNNModelInputs() {
-  const inputs = callAndDelete(
-    tfliteWebNNModel.GetInputs(), results => convertCppVectorToArray(results));
+
+async function getTfliteWebNNModelInputs() {
+  tfliteWebNNModelWorker.postMessage({ actionType: 'getTfliteWebNNModelInputs', payload:{} });
+  const inputs = await new Promise((resolve, reject) => {
+    tfliteWebNNModelWorker.onmessage = event => {
+      resolve(event.data);
+    };
+  });
   return inputs;
 }
-/** Converts the given c++ vector to a JS array. */
-function convertCppVectorToArray(vector) {
-  if (vector == null) return [];
 
-  const result = [];
-  for (let i = 0; i < vector.size(); i++) {
-    const item = vector.get(i);
-    result.push(item);
-  }
-  return result;
-}
-
-/**
- * Calls the given function with the given deletable argument, ensuring that
- * the argument gets deleted afterwards (even if the function throws an error).
- */
- function callAndDelete(arg, func) {
-  try {
-    return func(arg);
-  } finally {
-    if (arg != null) arg.delete();
-  }
-}
 
 async function loadTfliteWebNNRunner(url, enableProfiling, numThreads, enableWebNNDelegate, webNNDevicePreference) {
-  // Load WASM module and model.
-  const [module, modelArrayBuffer] = await Promise.all([
-    tflite_model_runner_ModuleFactory(),
-    (await fetch(url)).arrayBuffer(),
-  ]);
-  const modelBytes = new Uint8Array(modelArrayBuffer);
-  const offset = module._malloc(modelBytes.length);
-  module.HEAPU8.set(modelBytes, offset);
+  // WebNN restricts the sync version of create context to worker.
+  // https://github.com/webmachinelearning/webnn/pull/285
+  if(tfliteWebNNModelWorker == null)
+    tfliteWebNNModelWorker = new Worker('./tflite_worker.js');
 
   // webNNDevicePreference: 0 - default, 1 - gpu, 2 - cpu
   let options = {enableWebNNDelegate, webNNDevicePreference, enableProfiling};
@@ -510,17 +490,19 @@ async function loadTfliteWebNNRunner(url, enableProfiling, numThreads, enableWeb
   } else {
     options.numThreads = Math.min(tfliteSupportMaxNumThreads, Math.max(1, (navigator.hardwareConcurrency || 1) / 2));
   }
-  console.log(`loadTfliteWebNNRunner ${url} with numThreads = ${options.numThreads}`);
 
-  // Create model runner.
-  const modelRunnerResult =
-      module.TFLiteWebModelRunner.CreateFromBufferAndOptions(offset, modelBytes.length, options);
-  if (!modelRunnerResult.ok()) {
-    throw new Error(
-      'Failed to create TFLiteWebModelRunner: ' + modelRunnerResult.errorMessage());
-  }
-  const modelRunner = modelRunnerResult.value();
-  return modelRunner;
+  const hasMTSupport = await tf.env().getAsync('WASM_HAS_MULTITHREAD_SUPPORT');
+
+  tfliteWebNNModelWorker.postMessage({
+    actionType: 'loadTfliteWebNNRunner',
+    payload: { url, hasMTSupport, options }
+  });
+
+  const result = await new Promise((resolve, reject) => {
+    tfliteWebNNModelWorker.onmessage = event => {
+      resolve(event.data);
+    };
+  });
 }
 
 const imageBucket =
