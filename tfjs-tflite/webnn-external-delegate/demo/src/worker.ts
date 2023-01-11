@@ -19,7 +19,7 @@ import '@webmachinelearning/webnn-polyfill';
 import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-cpu';
 
-import {expose, proxy} from 'comlink';
+import {expose, proxy, transfer} from 'comlink';
 import {setWasmPath, loadTFLiteModel, TFLiteWebModelRunnerOptions} from '@tensorflow/tfjs-tflite';
 
 
@@ -46,7 +46,11 @@ fallback to use webnn-polyfill ${backend} backend.`);
       async predict(data) {
         // Hacky hard-coded tensor shape :(
         const prediction = model.predict(tf.tensor(data, [1, 224, 224, 3]));
-        return (prediction as tf.Tensor).dataSync() as Float32Array;
+        let result = (prediction as tf.Tensor).dataSync() as Float32Array;
+        // Workaround to fix unexpected buffer offset from predict result,
+        // which would cause transferring error
+        result = result.slice(0);
+        return transfer(result, [result.buffer]);
       }
     }
 

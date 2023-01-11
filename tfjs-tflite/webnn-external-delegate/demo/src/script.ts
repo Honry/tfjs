@@ -185,8 +185,10 @@ async function classifier(
   });
 
   // Run the inference.
+  const inputData = input.dataSync() as Float32Array;
   const inferenceStart = Date.now();
-  const output = await tfliteModel.predict(input.dataSync() as Float32Array);
+  const output = await tfliteModel.predict(
+      Comlink.transfer(inputData, [inputData.buffer]));
   const latency = Date.now() - inferenceStart;
   return [output, latency];
 }
