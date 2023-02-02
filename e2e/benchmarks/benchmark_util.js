@@ -249,8 +249,12 @@ async function timeInference(predict, numRuns = 1) {
   for (let i = 0; i < numRuns; i++) {
     const start = performance.now();
     const res = await predict();
-    // The prediction can be tf.Tensor|tf.Tensor[]|{[name: string]: tf.Tensor}.
-    const value = await downloadValuesFromTensorContainer(res);
+    // Prediction from tflite backend generates in worker thread and is
+    // unnecessary to be posted to main thread
+    if(!isTflite()) {
+      // The prediction can be tf.Tensor|tf.Tensor[]|{[name: string]: tf.Tensor}.
+      const value = await downloadValuesFromTensorContainer(res);
+    }
     const elapsedTime = performance.now() - start;
 
     tf.dispose(res);
@@ -361,7 +365,7 @@ async function downloadValuesFromTensorContainer(tensorContainer) {
  */
 async function profileModelInference(
   model, input, isTflite = false, numProfiles = 1) {
-  const predict = isTflite ? () => tfliteModel.predict(input) :
+  const predict = isTflite ? async () => await tfliteModel.predict() :
     getPredictFnForModel(model, input);
   return profileInference(predict, isTflite, numProfiles);
 }
@@ -409,7 +413,7 @@ async function profileInference(predict, isTflite = false, numProfiles = 1) {
   if (isTflite) {
     for (let i = 0; i < numProfiles; i++) {
       await predict();
-      const profileItems = tfliteModel.getProfilingResults();
+      const profileItems = await tfliteModel.getProfilingResults();
       kernelInfo.kernels = profileItems.map(item => {
         return {
           name: item.nodeType,
@@ -494,8 +498,15 @@ const TUNABLE_FLAG_VALUE_RANGE_MAP = {
   CHECK_COMPUTATION_FOR_ERRORS: [true, false],
   KEEP_INTERMEDIATE_TENSORS: [true, false],
   WEBGL_USE_SHAPES_UNIFORMS: [true, false],
-  WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE: [1, 5, 10, 15, 20, 25, 30, 35, 40]
+  WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE: [1, 5, 10, 15, 20, 25, 30, 35, 40],
+  NUM_THREADS:  ['default'],
+  ENABLE_WEBNN_DELEGATE: [true, false],
+  WEBNN_DEVICE_TYPE: ['cpu', 'gpu']
 };
+
+for (let i = 1; i <= navigator.hardwareConcurrency / 2; i++) {
+  TUNABLE_FLAG_VALUE_RANGE_MAP['NUM_THREADS'].push(i.toString());
+}
 
 /**
  * Set environment flags for testing.

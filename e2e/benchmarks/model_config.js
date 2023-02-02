@@ -78,6 +78,11 @@ function predictFunction(input) {
   return model => model.predict(input);
 }
 
+// Align with PTHREAD_POOL_SIZE setting
+// https://github.com/tensorflow/tfjs/blob/master/tfjs-backend-wasm/src/cc/BUILD.bazel#L88
+const tfjsTfliteMaxNumThreads = 8;
+let tfliteWorker;
+
 const benchmarks = {
   'MobileNetV3': {
     type: 'GraphModel',
@@ -87,17 +92,26 @@ const benchmarks = {
           modelArchitecture}_224/classification/5/default/1`;
       return tf.loadGraphModel(url, {fromTFHub: true});
     },
-    loadTflite: async (
-        enableProfiling = false, modelArchitecture = 'small_075') => {
+    loadTflite: async (enableProfiling = false, modelArchitecture = 'small_075',
+        numThreads = 'default', enableWebnnDelegate = false,
+        webnnDeviceType = 0) => {
       const url = `https://tfhub.dev/google/lite-model/imagenet/mobilenet_v3_${
           modelArchitecture}_224/classification/5/metadata/1`;
-      return tflite.loadTFLiteModel(url, {enableProfiling});
+      let options = {enableProfiling, numThreads: tfjsTfliteMaxNumThreads};
+      if (numThreads != 'default') {
+        options.numThreads = Math.min(
+            tfjsTfliteMaxNumThreads, parseInt(numThreads));
+      }
+      if (enableWebnnDelegate) {
+        options.webnnDeviceType = webnnDeviceType;
+      }
+      await tfliteModel.load(url, options);
     },
     predictFunc: () => {
-      const input = tf.randomNormal([1, 224, 224, 3]);
       if (typeof isTflite === 'function' && isTflite()) {
-        return () => tfliteModel.predict(input);
+        return async () => await tfliteModel.predict();
       } else {
+        const input = tf.randomNormal([1, 224, 224, 3]);
         return predictFunction(input);
       }
     },
@@ -115,9 +129,9 @@ const benchmarks = {
       return predictFunction(input);
     },
   },
-  // Currently, for mibilnet_v2, only the architectures with alpha=100 has
+  // Currently, for mobilenet_v2, only the architectures with alpha=100 has
   // tflite model. Since users could tune the alpha for 'mobilenet_v2' tfjs
-  // models, while we could only provides mibilnet_v2_lite with alpha=100 on the
+  // models, while we could only provides mobilnet_v2_lite with alpha=100 on the
   // tflite backend, so mibilnet_v2_lite is separated from mibilnet_v2 and fixes
   // alpha=100; othwise it would confuse users.
   'MobileNetV2Lite': {
@@ -125,16 +139,25 @@ const benchmarks = {
     load: async () => {
       throw new Error(`Please set tflite as the backend to run this model.`);
     },
-    loadTflite: async (enableProfiling = false) => {
+    loadTflite: async (enableProfiling = false, numThreads = 'default',
+        enableWebnnDelegate = false, webnnDeviceType = 0) => {
       const url =
           'https://tfhub.dev/tensorflow/lite-model/mobilenet_v2_1.0_224/1/metadata/1';
-      return tflite.loadTFLiteModel(url, {enableProfiling});
+      let options = {enableProfiling, numThreads: tfjsTfliteMaxNumThreads};
+      if (numThreads != 'default') {
+        options.numThreads = Math.min(
+            tfjsTfliteMaxNumThreads, parseInt(numThreads));
+      }
+      if (enableWebnnDelegate) {
+        options.webnnDeviceType = webnnDeviceType;
+      }
+      await tfliteModel.load(url, {enableProfiling});
     },
     predictFunc: () => {
-      const input = tf.randomNormal([1, 224, 224, 3]);
       if (typeof isTflite === 'function' && isTflite()) {
-        return () => tfliteModel.predict(input);
+        return async () => await tfliteModel.predict();
       } else {
+        const input = tf.randomNormal([1, 224, 224, 3]);
         return predictFunction(input);
       }
     },
@@ -503,26 +526,36 @@ const benchmarks = {
     load: async () => {
       return loadModelByUrlWithState(state.modelUrl, {}, state);
     },
-    loadTflite: async (enableProfiling = false) => {
-      return tflite.loadTFLiteModel(state.modelUrl, {enableProfiling});
+    loadTflite: async (enableProfiling = false, modelArchitecture = 'small_075',
+        numThreads = 'default', enableWebnnDelegate = false,
+        webnnDeviceType = 0) => {
+      let options = {enableProfiling, numThreads: tfjsTfliteMaxNumThreads};
+      if (numThreads != 'default') {
+        options.numThreads = Math.min(
+            tfjsTfliteMaxNumThreads, parseInt(numThreads));
+      }
+      if (enableWebnnDelegate) {
+        options.webnnDeviceType = webnnDeviceType;
+      }
+      await tfliteModel.load(state.modelUrl, options);
     },
     predictFunc: () => {
       return async (model, customInput) => {
         let inferenceInput;
         try {
-          inferenceInput = customInput ||
-              generateInputFromDef(
-                               state.inputs, model instanceof tf.GraphModel);
           if (typeof isTflite === 'function' && isTflite()) {
-            return await tfliteModel.predict(inferenceInput);
+            await tfliteModel.predict(state.inputs);
           } else {
+            inferenceInput = customInput ||
+              generateInputFromDef(
+                state.inputs, model instanceof tf.GraphModel);
             const predict = getPredictFnForModel(model, inferenceInput);
             const inferenceOutput = await predict();
             return inferenceOutput;
           }
         } finally {
           // dispose input tensors
-          if (!customInput) {
+          if (!customInput && inferenceInput) {
             tf.dispose(inferenceInput);
           }
         }
@@ -644,4 +677,43 @@ async function loadModelByUrlWithState(modelUrl, loadOptions = {}, state = {}) {
 async function loadModelByUrl(modelUrl, loadOptions = {}) {
   const state = {};
   return loadModelByUrlWithState(modelUrl, loadOptions, state);
+}
+
+// Since WebNN API restricts sync API in worker thread,
+// we move all operations of tflite backend in a worker thread.
+// https://webmachinelearning.github.io/webnn/
+const tfliteModel = {
+  'load': async (url, options) => {
+    await handleTfliteWorker(
+      { actionType: 'load', url, options });
+  },
+  'getInputs': async () => {
+    return await handleTfliteWorker({ actionType: 'getInputs' });
+  },
+  'getProfilingResults': async () => {
+    return await handleTfliteWorker(
+      { actionType: 'getProfilingResults' });
+  },
+  'predict': async (inputsInfo = null) => {
+    await handleTfliteWorker({ actionType: 'predict', inputsInfo });
+  }
+}
+
+async function handleTfliteWorker(message) {
+  if (!tfliteWorker) {
+    tfliteWorker = new Worker('tflite_worker.js');
+  }
+
+  tfliteWorker.postMessage(message);
+
+  const result = await new Promise(resolve => {
+    tfliteWorker.onmessage = event => {
+      resolve(event.data);
+    };
+  });
+  if (result.error) {
+    throw new Error(result.error);
+  } else {
+    return result;
+  }
 }

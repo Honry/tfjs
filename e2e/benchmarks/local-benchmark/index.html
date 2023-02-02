@@ -295,7 +295,8 @@ limitations under the License.
       flags: {},
       isFlagChanged: false,
       isModelLoaded: false,
-      inputs: {}
+      inputs: {},
+      shouldReloadTfliteModel: false
     };
 
     const modalDiv = document.getElementById('modal-msg');
@@ -306,7 +307,7 @@ limitations under the License.
     const parameterTable = document.querySelector('#parameters tbody');
     const modelInputsTable = document.querySelector('#modelInputs tbody');
 
-    let model, tfliteModel, predict, chartWidth;
+    let model, predict, chartWidth;
 
     async function showMsg(message) {
       if (message != null) {
@@ -336,6 +337,7 @@ limitations under the License.
       await tf.time(() => tf.add(tf.tensor1d([1]), tf.tensor1d([1])).data());
       const sortedFeatures = Object.keys(tf.env().features).sort().map(
         name => `  ${name}: ${tf.env().features[name]}`);
+      sortedFeatures.push(`  HAS_WEBNN: ${hasWebnn()}`);
       envDiv.innerHTML += `<br/>{<br>${sortedFeatures.join('<br>')}<br>}`;
     }
 
@@ -420,13 +422,13 @@ limitations under the License.
         const input = generateInputFromDef(state.inputs, model instanceof tf.GraphModel);
         try {
           timeInfo = isTflite() ?
-              await timeInference(()=>predict(input), numWarmups) :
+              await timeInference(()=>predict(), numWarmups) :
               await timeModelInference(model, input, numWarmups);
         } finally {
           tf.dispose(input);
         }
       } else {
-        timeInfo = await timeInference(() => predict(model), numWarmups);
+        timeInfo = await timeInference(()=> predict(model), numWarmups);
       }
 
       await showMsg(null);
@@ -441,7 +443,7 @@ limitations under the License.
       }
       let needInputShape = false;
       const modelInputsElement = document.getElementById('modelInputs');
-      const inputs = isTflite() ? tfliteModel.inputs : model.inputs;
+      const inputs = isTflite() ? await tfliteModel.getInputs() : model.inputs;
       if (inputs == null) {
         modelInputsElement.style.display = 'none';
       } else {
@@ -479,7 +481,7 @@ limitations under the License.
               const maxInput = createRangeInput(state.inputs[inputIndex].range,
                 1);
               const seperator = document.createElement('span');
-              seperator.textContent = ' - '
+              seperator.textContent = ' - ';
               const div = document.createElement('div');
               div.appendChild(minInput);
               div.appendChild(seperator);
@@ -548,7 +550,7 @@ limitations under the License.
         model = await benchmark.load(inputSize, state.architecture, state.inputType);
       }
       state.inputs = [];
-      const inputs = isTflite() ? tfliteModel.inputs : model.inputs
+      const inputs = isTflite() ? await tfliteModel.getInputs() : model.inputs;
       if (inputs) {
         // construct the input state for the model
         for (let modelInputIndex = 0; modelInputIndex < inputs.length; modelInputIndex++) {
@@ -563,7 +565,7 @@ limitations under the License.
           });
         }
       }
-      predict = benchmark.predictFunc(inputSize);
+      predict = await benchmark.predictFunc(inputSize);
       const elapsed = performance.now() - start;
 
       await showMsg(null);
@@ -605,7 +607,7 @@ limitations under the License.
         const input = generateInputFromDef(state.inputs, model instanceof tf.GraphModel);
         try {
           timeInfo = isTflite() ?
-              await timeInference(()=>predict(input), numRuns) :
+              await timeInference(()=>predict(), numRuns) :
               await timeModelInference(model, input, numRuns);
         } finally {
           tf.dispose(input);
@@ -638,8 +640,7 @@ limitations under the License.
         //
         // Without this, the model with profiling *enabled* will continued to be used to measure
         // the total run time when "Run benchmark" is clicked, which is not accurate.
-        state.isModelChanged = true;
-        state.isModelLoaded = false;
+        state.shouldReloadTfliteModel = true;
       }
 
       const start = performance.now();
@@ -726,7 +727,8 @@ limitations under the License.
     }
 
     async function loadModel() {
-      if (state.isModelChanged || !state.isModelLoaded || state.isFlagChanged) {
+      if (state.isModelChanged || !state.isModelLoaded || state.isFlagChanged ||
+          (isTflite() && state.shouldReloadTfliteModel)) {
         await loadModelAndRecordTime();
         state.isModelLoaded = true;
         const needInputShape = await showInputs();
@@ -765,7 +767,6 @@ limitations under the License.
         return;
       }
       await showBenchmarkingParameters();
-
       await warmUpAndRecordTime();
       await measureAveragePredictTime();
       await profileMemoryAndKernelTime();
@@ -996,12 +997,24 @@ limitations under the License.
       return state.backend === 'tflite';
     }
 
+    function hasWebnn() {
+      return typeof MLGraphBuilder !== 'undefined';
+    }
+
     async function loadTfliteModel(enableProfiling = false) {
-      if (tfliteModel) {
-        tfliteModel.modelRunner.cleanUp();
-      }
+      state.shouldReloadTfliteModel = false;
       const benchmark = benchmarks[state.benchmark];
-      tfliteModel = await benchmark.loadTflite(enableProfiling, state.architecture);
+      const numThreads = state.flags['NUM_THREADS'];
+      const enableWebnnDelegate = state.flags['ENABLE_WEBNN_DELEGATE'];
+      const webnnDeviceType = state.flags['WEBNN_DEVICE_TYPE'];
+      const webnnDevice = {'gpu': 1, 'cpu': 2};
+
+      if (!hasWebnn() && enableWebnnDelegate) {
+        throw new Error(`WebNN is not supported on this browser.`);
+      }
+      await benchmark.loadTflite(
+          enableProfiling, state.architecture, numThreads,
+          enableWebnnDelegate, webnnDevice[webnnDeviceType]);
     }
 
     function updateModelsDropdown(newValues) {

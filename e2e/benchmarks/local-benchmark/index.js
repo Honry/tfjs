@@ -31,7 +31,11 @@ const BACKEND_FLAGS_MAP = {
     'CHECK_COMPUTATION_FOR_ERRORS', 'WEBGL_USE_SHAPES_UNIFORMS',
     'KEEP_INTERMEDIATE_TENSORS'
   ],
-  tflite: [],
+  tflite: [
+    'NUM_THREADS',
+    'ENABLE_WEBNN_DELEGATE',
+    'WEBNN_DEVICE_TYPE',
+  ],
 };
 if (tf.engine().backendNames().includes('webgpu')) {
   BACKEND_FLAGS_MAP['webgpu'] =
@@ -52,6 +56,9 @@ const TUNABLE_FLAG_NAME_MAP = {
   WEBGL_USE_SHAPES_UNIFORMS: 'Use shapes uniforms',
   CHECK_COMPUTATION_FOR_ERRORS: 'Check each op result',
   KEEP_INTERMEDIATE_TENSORS: 'Print intermediate tensors',
+  NUM_THREADS: 'numThreads',
+  ENABLE_WEBNN_DELEGATE: 'enable webnn delegate',
+  WEBNN_DEVICE_TYPE: 'webnn device type',
 };
 if (tf.engine().backendNames().includes('webgpu')) {
   TUNABLE_FLAG_NAME_MAP['WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE'] =
@@ -185,7 +192,11 @@ async function initDefaultValueMap() {
     for (let index = 0; index < BACKEND_FLAGS_MAP[backend].length; index++) {
       const flag = BACKEND_FLAGS_MAP[backend][index];
       try {
-        TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag] = await tf.env().getAsync(flag);
+        if (backend === 'tflite') {
+          TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag] = TUNABLE_FLAG_VALUE_RANGE_MAP[flag][0];
+        } else {
+          TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag] = await tf.env().getAsync(flag);
+        }
       } catch (ex) {
         console.warn(ex.message);
       }
@@ -213,7 +224,8 @@ async function initDefaultValueMap() {
 function getTunableRange(flag) {
   const defaultValue = TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag];
   if (flag === 'WEBGL_FORCE_F16_TEXTURES' ||
-      flag === 'WEBGL_PACK_DEPTHWISECONV' || 'KEEP_INTERMEDIATE_TENSORS') {
+      flag === 'WEBGL_PACK_DEPTHWISECONV' ||
+      flag === 'KEEP_INTERMEDIATE_TENSORS') {
     return [false, true];
   } else if (flag === 'WEBGL_VERSION') {
     const tunableRange = [];
@@ -233,6 +245,8 @@ function getTunableRange(flag) {
         [false];
   } else if (TUNABLE_FLAG_VALUE_RANGE_MAP[flag] != null) {
     return TUNABLE_FLAG_VALUE_RANGE_MAP[flag];
+  } else if (flag === 'WEBNN_DEVICE_TYPE') {
+    return ['cpu', 'gpu'];
   } else {
     return [defaultValue];
   }
