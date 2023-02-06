@@ -151,7 +151,7 @@ const benchmarks = {
       if (enableWebnnDelegate) {
         options.webnnDeviceType = webnnDeviceType;
       }
-      await tfliteModel.load(url, {enableProfiling});
+      await tfliteModel.load(url, options);
     },
     predictFunc: () => {
       if (typeof isTflite === 'function' && isTflite()) {
