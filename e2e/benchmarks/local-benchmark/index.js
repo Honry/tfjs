@@ -32,7 +32,6 @@ const BACKEND_FLAGS_MAP = {
     'KEEP_INTERMEDIATE_TENSORS'
   ],
   tflite: [
-    'NUM_THREADS',
     'ENABLE_WEBNN_DELEGATE',
     'WEBNN_DEVICE_TYPE',
   ],
@@ -56,7 +55,6 @@ const TUNABLE_FLAG_NAME_MAP = {
   WEBGL_USE_SHAPES_UNIFORMS: 'Use shapes uniforms',
   CHECK_COMPUTATION_FOR_ERRORS: 'Check each op result',
   KEEP_INTERMEDIATE_TENSORS: 'Print intermediate tensors',
-  NUM_THREADS: 'numThreads',
   ENABLE_WEBNN_DELEGATE: 'enable webnn delegate',
   WEBNN_DEVICE_TYPE: 'webnn device type',
 };

@@ -1009,7 +1009,6 @@ limitations under the License.
     async function loadTfliteModel(enableProfiling = false) {
       state.shouldReloadTfliteModel = false;
       const benchmark = benchmarks[state.benchmark];
-      const numThreads = state.flags['NUM_THREADS'];
       const enableWebnnDelegate = state.flags['ENABLE_WEBNN_DELEGATE'];
       const webnnDeviceType = state.flags['WEBNN_DEVICE_TYPE'];
       const webnnDevice = {'gpu': 1, 'cpu': 2};
@@ -1017,7 +1016,7 @@ limitations under the License.
       if (!hasWebnn() && enableWebnnDelegate) {
         throw new Error(`WebNN is not supported on this browser.`);
       }
-      await benchmark.loadTflite(enableProfiling, numThreads, enableWebnnDelegate,
+      await benchmark.loadTflite(enableProfiling, enableWebnnDelegate,
           webnnDevice[webnnDeviceType], state.architecture);
     }
 

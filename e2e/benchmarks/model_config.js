@@ -78,9 +78,6 @@ function predictFunction(input) {
   return model => model.predict(input);
 }
 
-// Align with PTHREAD_POOL_SIZE setting
-// https://github.com/tensorflow/tfjs/blob/master/tfjs-backend-wasm/src/cc/BUILD.bazel#L88
-const tfjsTfliteMaxNumThreads = 8;
 let tfliteWorker;
 
 const benchmarks = {
@@ -92,16 +89,11 @@ const benchmarks = {
           modelArchitecture}_224/classification/5/default/1`;
       return tf.loadGraphModel(url, {fromTFHub: true});
     },
-    loadTflite: async (enableProfiling = false, numThreads = 'default',
-        enableWebnnDelegate = false, webnnDeviceType = 0,
-        modelArchitecture = 'small_075') => {
+    loadTflite: async (enableProfiling = false, enableWebnnDelegate = false,
+        webnnDeviceType = 0, modelArchitecture = 'small_075') => {
       const url = `https://tfhub.dev/google/lite-model/imagenet/mobilenet_v3_${
           modelArchitecture}_224/classification/5/metadata/1`;
-      let options = {enableProfiling, numThreads: tfjsTfliteMaxNumThreads};
-      if (numThreads != 'default') {
-        options.numThreads = Math.min(
-            tfjsTfliteMaxNumThreads, parseInt(numThreads));
-      }
+      let options = { enableProfiling };
       if (enableWebnnDelegate) {
         options.webnnDeviceType = webnnDeviceType;
       }
@@ -144,15 +136,11 @@ const benchmarks = {
     load: async () => {
       throw new Error(`Please set tflite as the backend to run this model.`);
     },
-    loadTflite: async (enableProfiling = false, numThreads = 'default',
-        enableWebnnDelegate = false, webnnDeviceType = 0) => {
+    loadTflite: async (enableProfiling = false, enableWebnnDelegate = false,
+        webnnDeviceType = 0) => {
       const url =
           'https://tfhub.dev/tensorflow/lite-model/mobilenet_v2_1.0_224/1/metadata/1';
-      let options = {enableProfiling, numThreads: tfjsTfliteMaxNumThreads};
-      if (numThreads != 'default') {
-        options.numThreads = Math.min(
-            tfjsTfliteMaxNumThreads, parseInt(numThreads));
-      }
+      let options = { enableProfiling };
       if (enableWebnnDelegate) {
         options.webnnDeviceType = webnnDeviceType;
       }
@@ -536,13 +524,9 @@ const benchmarks = {
     load: async () => {
       return loadModelByUrlWithState(state.modelUrl, {}, state);
     },
-    loadTflite: async (enableProfiling = false, numThreads = 'default',
-        enableWebnnDelegate = false, webnnDeviceType = 0) => {
-      let options = {enableProfiling, numThreads: tfjsTfliteMaxNumThreads};
-      if (numThreads != 'default') {
-        options.numThreads = Math.min(
-            tfjsTfliteMaxNumThreads, parseInt(numThreads));
-      }
+    loadTflite: async (enableProfiling = false, enableWebnnDelegate = false,
+        webnnDeviceType = 0) => {
+      let options = { enableProfiling };
       if (enableWebnnDelegate) {
         options.webnnDeviceType = webnnDeviceType;
       }
