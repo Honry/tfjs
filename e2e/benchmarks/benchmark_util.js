@@ -249,8 +249,8 @@ async function timeInference(predict, numRuns = 1) {
   for (let i = 0; i < numRuns; i++) {
     const start = performance.now();
     const res = await predict();
-    // Prediction from tflite backend generates in worker thread and is
-    // unnecessary to be posted to main thread
+    // Prediction from tflite backend generates in the worker thread, and the
+    // result transferred back to the main thread is already a TypedArray.
     if(!isTflite()) {
       // The prediction can be tf.Tensor|tf.Tensor[]|{[name: string]: tf.Tensor}.
       const value = await downloadValuesFromTensorContainer(res);
@@ -360,14 +360,11 @@ async function downloadValuesFromTensorContainer(tensorContainer) {
  * @param model An instance of tf.GraphModel or tf.LayersModel for profiling
  *     memory usage in the inference process.
  * @param input The input tensor container for model inference.
- * @param isTflite Whether a TFLite model is being profiled or not.
  * @param numProfiles The number of rounds for profiling the inference process.
  */
-async function profileModelInference(
-  model, input, isTflite = false, numProfiles = 1) {
-  const predict = isTflite ? async () => await tfliteModel.predict() :
-    getPredictFnForModel(model, input);
-  return profileInference(predict, isTflite, numProfiles);
+async function profileModelInference(model, input, numProfiles = 1) {
+  const predict = getPredictFnForModel(model, input);
+  return profileInference(predict, false, numProfiles);
 }
 
 /**

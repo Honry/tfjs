@@ -422,7 +422,7 @@ limitations under the License.
         const input = generateInputFromDef(state.inputs, model instanceof tf.GraphModel);
         try {
           timeInfo = isTflite() ?
-              await timeInference(()=>predict(), numWarmups) :
+              await timeInference(()=>predict(undefined, input), numWarmups) :
               await timeModelInference(model, input, numWarmups);
         } finally {
           tf.dispose(input);
@@ -607,7 +607,7 @@ limitations under the License.
         const input = generateInputFromDef(state.inputs, model instanceof tf.GraphModel);
         try {
           timeInfo = isTflite() ?
-              await timeInference(()=>predict(), numRuns) :
+              await timeInference(()=>predict(undefined, input), numRuns) :
               await timeModelInference(model, input, numRuns);
         } finally {
           tf.dispose(input);
@@ -650,7 +650,11 @@ limitations under the License.
       if (state.benchmark === 'custom') {
         const input = generateInputFromDef(state.inputs, model instanceof tf.GraphModel);
         try {
-          profileInfo = await profileModelInference(model, input, isTflite(), numProfiles);
+          if (isTflite()) {
+            profileInfo = await profileInference(() => predict(undefined, input), true, numProfiles);
+          } else {
+            profileInfo = await profileModelInference(model, input, numProfiles);
+          }
         } finally {
           tf.dispose(input);
         }
@@ -998,6 +1002,7 @@ limitations under the License.
     }
 
     function hasWebnn() {
+      return true;
       return typeof MLGraphBuilder !== 'undefined';
     }
 
@@ -1012,9 +1017,8 @@ limitations under the License.
       if (!hasWebnn() && enableWebnnDelegate) {
         throw new Error(`WebNN is not supported on this browser.`);
       }
-      await benchmark.loadTflite(
-          enableProfiling, state.architecture, numThreads,
-          enableWebnnDelegate, webnnDevice[webnnDeviceType]);
+      await benchmark.loadTflite(enableProfiling, numThreads, enableWebnnDelegate,
+          webnnDevice[webnnDeviceType], state.architecture);
     }
 
     function updateModelsDropdown(newValues) {

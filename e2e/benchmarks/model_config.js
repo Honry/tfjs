@@ -92,9 +92,9 @@ const benchmarks = {
           modelArchitecture}_224/classification/5/default/1`;
       return tf.loadGraphModel(url, {fromTFHub: true});
     },
-    loadTflite: async (enableProfiling = false, modelArchitecture = 'small_075',
-        numThreads = 'default', enableWebnnDelegate = false,
-        webnnDeviceType = 0) => {
+    loadTflite: async (enableProfiling = false, numThreads = 'default',
+        enableWebnnDelegate = false, webnnDeviceType = 0,
+        modelArchitecture = 'small_075') => {
       const url = `https://tfhub.dev/google/lite-model/imagenet/mobilenet_v3_${
           modelArchitecture}_224/classification/5/metadata/1`;
       let options = {enableProfiling, numThreads: tfjsTfliteMaxNumThreads};
@@ -108,10 +108,15 @@ const benchmarks = {
       await tfliteModel.load(url, options);
     },
     predictFunc: () => {
+      const input = tf.randomNormal([1, 224, 224, 3]);
+      const inputData = input.dataSync();
       if (typeof isTflite === 'function' && isTflite()) {
-        return async () => await tfliteModel.predict();
+        return async () => {
+          // Do copy for 'inputData' in each predict as its buffer
+          // will be detached after transferring to worker.
+          return await tfliteModel.predict(inputData.slice(0));
+        };
       } else {
-        const input = tf.randomNormal([1, 224, 224, 3]);
         return predictFunction(input);
       }
     },
@@ -154,10 +159,15 @@ const benchmarks = {
       await tfliteModel.load(url, options);
     },
     predictFunc: () => {
+      const input = tf.randomNormal([1, 224, 224, 3]);
+      const inputData = input.dataSync();
       if (typeof isTflite === 'function' && isTflite()) {
-        return async () => await tfliteModel.predict();
+        return async () => {
+          // Do copy for 'inputData' in each predict as its buffer
+          // will be detached after transferring to worker.
+          return await tfliteModel.predict(inputData.slice(0));
+        };
       } else {
-        const input = tf.randomNormal([1, 224, 224, 3]);
         return predictFunction(input);
       }
     },
@@ -526,9 +536,8 @@ const benchmarks = {
     load: async () => {
       return loadModelByUrlWithState(state.modelUrl, {}, state);
     },
-    loadTflite: async (enableProfiling = false, modelArchitecture = 'small_075',
-        numThreads = 'default', enableWebnnDelegate = false,
-        webnnDeviceType = 0) => {
+    loadTflite: async (enableProfiling = false, numThreads = 'default',
+        enableWebnnDelegate = false, webnnDeviceType = 0) => {
       let options = {enableProfiling, numThreads: tfjsTfliteMaxNumThreads};
       if (numThreads != 'default') {
         options.numThreads = Math.min(
@@ -541,18 +550,28 @@ const benchmarks = {
     },
     predictFunc: () => {
       return async (model, customInput) => {
-        let inferenceInput;
+        let inferenceInput, inferenceOutput;
         try {
+          inferenceInput = customInput ||
+            generateInputFromDef(
+              state.inputs, model instanceof tf.GraphModel);
           if (typeof isTflite === 'function' && isTflite()) {
-            await tfliteModel.predict(state.inputs);
+            const inputDataArray = [];
+            if (inferenceInput instanceof Array) {
+              for (let tensor of inferenceInput) {
+                const inputData = tensor.dataSync();
+                inputDataArray.push(inputData.slice(0));
+              }
+            } else {
+              const inputData = inferenceInput.dataSync();
+              inputDataArray.push(inputData.slice(0));
+            }
+            inferenceOutput = await tfliteModel.predict(inputDataArray);
           } else {
-            inferenceInput = customInput ||
-              generateInputFromDef(
-                state.inputs, model instanceof tf.GraphModel);
             const predict = getPredictFnForModel(model, inferenceInput);
-            const inferenceOutput = await predict();
-            return inferenceOutput;
+            inferenceOutput = await predict();
           }
+          return inferenceOutput;
         } finally {
           // dispose input tensors
           if (!customInput && inferenceInput) {
@@ -694,8 +713,9 @@ const tfliteModel = {
     return await handleTfliteWorker(
       { actionType: 'getProfilingResults' });
   },
-  'predict': async (inputsInfo = null) => {
-    await handleTfliteWorker({ actionType: 'predict', inputsInfo });
+  'predict': async (inputData) => {
+    const result = await handleTfliteWorker({ actionType: 'predict', inputData });
+    return result.outputData;
   }
 }
 
@@ -704,7 +724,19 @@ async function handleTfliteWorker(message) {
     tfliteWorker = new Worker('tflite_worker.js');
   }
 
-  tfliteWorker.postMessage(message);
+  if (message.actionType == 'predict') {
+    const inputData = message.inputData;
+    if (inputData[0].length !== undefined) {
+      // Multiple inputs
+      tfliteWorker.postMessage(message,
+        inputData.map(input => { return input.buffer; }));
+    } else {
+      // Single input
+      tfliteWorker.postMessage(message, [inputData.buffer]);
+    }
+  } else {
+    tfliteWorker.postMessage(message);
+  }
 
   const result = await new Promise(resolve => {
     tfliteWorker.onmessage = event => {

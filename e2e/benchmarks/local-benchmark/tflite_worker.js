@@ -56,26 +56,40 @@ onmessage = async (message) => {
         postMessage(tfliteModel.getProfilingResults());
         break;
       case 'predict':
-        // Generates inputs in worker thread instead of posting inputs from
-        // main thread in order to eliminate irrelevant time from data
-        // transfer in total inference time.
-        let inferenceInput;
-        const inputsInfo = message.data.inputsInfo;
+        const inputTensorArray = [];
+        let outputTensor;
         try {
-          if (inputsInfo) {
-            // 'custom' model may use customized inputs
-            inferenceInput = generateInputFromDef(inputsInfo);
-          } else {
-            // Other supported models for tflite have only one input
-            inferenceInput = tf.randomNormal(inputs[0].shape, inputs[0].dtype);
+          let inputData = message.data.inputData;
+          if (!inputData[0].length) {
+            // Single input, move it into an arrary
+            inputData = [inputData];
           }
-          const res = tfliteModel.predict(inferenceInput);
-          postMessage('OK');
+          for (let i = 0; i< inputs.length; i++) {
+            const inputTensor = tf.tensor(
+                inputData[i], inputs[i].shape, inputs[i].dtype);
+            inputTensorArray.push(inputTensor);
+          }
+          outputTensor = tfliteModel.predict(inputTensorArray);
+          let outputData = outputTensor.dataSync();
+          if (outputTensor instanceof Array) {
+            // Multiple outputs
+            // Do copy to fix unexpected buffer offset from predict result,
+            // which would cause transferring error.
+            const bufferArray = outputData.map(output => { return output.slice(0).buffer; });
+            postMessage({ outputData }, bufferArray);
+          } else {
+            // Single output
+            // Do copy to fix unexpected buffer offset from predict result,
+            // which would cause transferring error.
+            outputData = outputData.slice(0);
+            postMessage({ outputData }, [outputData.buffer]);
+          }
         } catch(e) {
           postMessage({error: e.message});
         } finally {
-          // dispose input tensors
-          tf.dispose(inferenceInput);
+          // dispose input and output tensors
+          tf.dispose(inputTensorArray);
+          tf.dispose(outputTensor);
         }
         break;
       default:
