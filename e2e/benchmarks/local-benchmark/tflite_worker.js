@@ -15,10 +15,10 @@
  * =============================================================================
  */
 
-// Load tfjs-tflite from jsdelivr because it correctly sets the
-// "cross-origin-resource-policy" header.
 importScripts("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core");
 importScripts("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu");
+// Load tfjs-tflite from jsdelivr because it correctly sets the
+// "cross-origin-resource-policy" header.
 // importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/tf-tflite.js');
 importScripts("./tfjs-tflite/tf-tflite.js");
 
@@ -35,7 +35,8 @@ onmessage = async (message) => {
         tflite.setWasmPath('./tfjs-tflite/');
         // tflite.setWasmPath('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/');
         let options = message.data.options;
-        if (options.webnnDeviceType !== undefined) {
+        if (options.enableWebnnDelegate) {
+          delete options.enableWebnnDelegate;
           options.delegatePath = './webnn_external_delegate_wasm.wasm';
         }
         // Load tflite model.

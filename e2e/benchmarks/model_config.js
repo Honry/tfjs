@@ -90,13 +90,10 @@ const benchmarks = {
       return tf.loadGraphModel(url, {fromTFHub: true});
     },
     loadTflite: async (enableProfiling = false, enableWebnnDelegate = false,
-        webnnDeviceType = 0, modelArchitecture = 'small_075') => {
+        modelArchitecture = 'small_075') => {
       const url = `https://tfhub.dev/google/lite-model/imagenet/mobilenet_v3_${
           modelArchitecture}_224/classification/5/metadata/1`;
-      let options = { enableProfiling };
-      if (enableWebnnDelegate) {
-        options.webnnDeviceType = webnnDeviceType;
-      }
+      let options = { enableProfiling, enableWebnnDelegate };
       await tfliteModel.load(url, options);
     },
     predictFunc: () => {
@@ -136,14 +133,10 @@ const benchmarks = {
     load: async () => {
       throw new Error(`Please set tflite as the backend to run this model.`);
     },
-    loadTflite: async (enableProfiling = false, enableWebnnDelegate = false,
-        webnnDeviceType = 0) => {
+    loadTflite: async (enableProfiling = false, enableWebnnDelegate = false) => {
       const url =
           'https://tfhub.dev/tensorflow/lite-model/mobilenet_v2_1.0_224/1/metadata/1';
-      let options = { enableProfiling };
-      if (enableWebnnDelegate) {
-        options.webnnDeviceType = webnnDeviceType;
-      }
+      let options = { enableProfiling, enableWebnnDelegate };
       await tfliteModel.load(url, options);
     },
     predictFunc: () => {
@@ -524,12 +517,8 @@ const benchmarks = {
     load: async () => {
       return loadModelByUrlWithState(state.modelUrl, {}, state);
     },
-    loadTflite: async (enableProfiling = false, enableWebnnDelegate = false,
-        webnnDeviceType = 0) => {
-      let options = { enableProfiling };
-      if (enableWebnnDelegate) {
-        options.webnnDeviceType = webnnDeviceType;
-      }
+    loadTflite: async (enableProfiling = false, enableWebnnDelegate = false) => {
+      let options = { enableProfiling, enableWebnnDelegate };
       await tfliteModel.load(state.modelUrl, options);
     },
     predictFunc: () => {

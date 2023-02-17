@@ -497,8 +497,7 @@ const TUNABLE_FLAG_VALUE_RANGE_MAP = {
   KEEP_INTERMEDIATE_TENSORS: [true, false],
   WEBGL_USE_SHAPES_UNIFORMS: [true, false],
   WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE: [1, 5, 10, 15, 20, 25, 30, 35, 40],
-  ENABLE_WEBNN_DELEGATE: [true, false],
-  WEBNN_DEVICE_TYPE: ['cpu', 'gpu']
+  ENABLE_WEBNN_DELEGATE: [true, false]
 };
 
 /**

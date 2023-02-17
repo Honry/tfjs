@@ -33,7 +33,6 @@ const BACKEND_FLAGS_MAP = {
   ],
   tflite: [
     'ENABLE_WEBNN_DELEGATE',
-    'WEBNN_DEVICE_TYPE',
   ],
 };
 if (tf.engine().backendNames().includes('webgpu')) {
@@ -56,7 +55,6 @@ const TUNABLE_FLAG_NAME_MAP = {
   CHECK_COMPUTATION_FOR_ERRORS: 'Check each op result',
   KEEP_INTERMEDIATE_TENSORS: 'Print intermediate tensors',
   ENABLE_WEBNN_DELEGATE: 'enable webnn delegate',
-  WEBNN_DEVICE_TYPE: 'webnn device type',
 };
 if (tf.engine().backendNames().includes('webgpu')) {
   TUNABLE_FLAG_NAME_MAP['WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE'] =
@@ -243,8 +241,6 @@ function getTunableRange(flag) {
         [false];
   } else if (TUNABLE_FLAG_VALUE_RANGE_MAP[flag] != null) {
     return TUNABLE_FLAG_VALUE_RANGE_MAP[flag];
-  } else if (flag === 'WEBNN_DEVICE_TYPE') {
-    return ['cpu', 'gpu'];
   } else {
     return [defaultValue];
   }

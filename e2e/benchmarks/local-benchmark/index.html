@@ -1010,14 +1010,12 @@ limitations under the License.
       state.shouldReloadTfliteModel = false;
       const benchmark = benchmarks[state.benchmark];
       const enableWebnnDelegate = state.flags['ENABLE_WEBNN_DELEGATE'];
-      const webnnDeviceType = state.flags['WEBNN_DEVICE_TYPE'];
-      const webnnDevice = {'gpu': 1, 'cpu': 2};
 
       if (!hasWebnn() && enableWebnnDelegate) {
         throw new Error(`WebNN is not supported on this browser.`);
       }
-      await benchmark.loadTflite(enableProfiling, enableWebnnDelegate,
-          webnnDevice[webnnDeviceType], state.architecture);
+      await benchmark.loadTflite(
+          enableProfiling, enableWebnnDelegate, state.architecture);
     }
 
     function updateModelsDropdown(newValues) {
