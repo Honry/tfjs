@@ -249,8 +249,9 @@ async function timeInference(predict, numRuns = 1) {
   for (let i = 0; i < numRuns; i++) {
     const start = performance.now();
     const res = await predict();
-    // Prediction from tflite backend generates in the worker thread, and the
-    // result transferred back to the main thread is already a TypedArray.
+    // Prediction from tflite backend generates in the worker thread,
+    // we don't post the result back to main thread to avoid unnecessary
+    // overhead in transferring between worker and main thread.
     if(!isTflite()) {
       // The prediction can be tf.Tensor|tf.Tensor[]|{[name: string]: tf.Tensor}.
       const value = await downloadValuesFromTensorContainer(res);

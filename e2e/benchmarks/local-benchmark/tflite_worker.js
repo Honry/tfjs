@@ -17,15 +17,12 @@
 
 // Load tfjs-tflite from jsdelivr because it correctly sets the
 // "cross-origin-resource-policy" header.
-// importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@latest/dist/tf-tflite.js');
-importScripts('https://cdn.jsdelivr.net/npm/@webmachinelearning/webnn-polyfill/dist/webnn-polyfill.js');
 importScripts("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core");
 importScripts("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu");
+// importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/tf-tflite.js');
 importScripts("./tfjs-tflite/tf-tflite.js");
-importScripts("../benchmark_util.js");
 
-let tfliteModel;
-let inputs;
+let tfliteModel, inputs;
 
 // Receive message from the main thread
 onmessage = async (message) => {
@@ -36,6 +33,7 @@ onmessage = async (message) => {
           tfliteModel.modelRunner.cleanUp();
         }
         tflite.setWasmPath('./tfjs-tflite/');
+        // tflite.setWasmPath('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/');
         let options = message.data.options;
         if (options.webnnDeviceType !== undefined) {
           options.delegatePath = './webnn_external_delegate_wasm.wasm';
@@ -46,7 +44,7 @@ onmessage = async (message) => {
           inputs = tfliteModel.inputs;
           postMessage('OK');                
         } catch(e) {
-          postMessage({error: e.message});
+          postMessage({ error: e.message });
         }
         break;
       case 'getInputs':
@@ -70,22 +68,24 @@ onmessage = async (message) => {
             inputTensorArray.push(inputTensor);
           }
           outputTensor = tfliteModel.predict(inputTensorArray);
-          let outputData = outputTensor.dataSync();
-          if (outputTensor instanceof Array) {
+          if (tfliteModel.outputs.length > 1) {
             // Multiple outputs
-            // Do copy to fix unexpected buffer offset from predict result,
-            // which would cause transferring error.
-            const bufferArray = outputData.map(output => { return output.slice(0).buffer; });
-            postMessage({ outputData }, bufferArray);
+            let outputData = [];
+            for (let tensorName in outputTensor) {
+              outputData.push(outputTensor[tensorName].dataSync());
+            }
           } else {
             // Single output
-            // Do copy to fix unexpected buffer offset from predict result,
-            // which would cause transferring error.
-            outputData = outputData.slice(0);
-            postMessage({ outputData }, [outputData.buffer]);
+            const outputData = outputTensor.dataSync();
           }
+          // We encourage user processing output data in worker thread
+          // rather than posting output data to main thread directly, as
+          // which would bring much overhead if the output size is huge.
+          // From this perspective, we don't post output data to main thread
+          // in this benchmark.
+          postMessage('OK');
         } catch(e) {
-          postMessage({error: e.message});
+          postMessage({ error: e.message });
         } finally {
           // dispose input and output tensors
           tf.dispose(inputTensorArray);

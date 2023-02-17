@@ -698,8 +698,7 @@ const tfliteModel = {
       { actionType: 'getProfilingResults' });
   },
   'predict': async (inputData) => {
-    const result = await handleTfliteWorker({ actionType: 'predict', inputData });
-    return result.outputData;
+    return await handleTfliteWorker({ actionType: 'predict', inputData });
   }
 }
 
