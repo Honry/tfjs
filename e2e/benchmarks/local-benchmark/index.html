@@ -1011,7 +1011,7 @@ limitations under the License.
       const enableWebnnDelegate = state.flags['ENABLE_WEBNN_DELEGATE'];
 
       if (!hasWebnn() && enableWebnnDelegate) {
-        throw new Error(`WebNN is not supported on this browser.`);
+        throw new Error(`WebNN is not supported. Please use Chrome browser with flag "--enable-experimental-web-platform-features" enabled.`);
       }
       await benchmark.loadTflite(
           enableProfiling, enableWebnnDelegate, state.architecture);
