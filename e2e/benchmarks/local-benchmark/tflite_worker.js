@@ -36,9 +36,9 @@ onmessage = async (message) => {
         // tflite.setWasmPath('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/');
         let options = message.data.options;
         if (options.enableWebnnDelegate) {
-          delete options.enableWebnnDelegate;
           options.delegatePath = './webnn_external_delegate_wasm.wasm';
         }
+        delete options.enableWebnnDelegate;
         // Load tflite model.
         try {
           tfliteModel = await tflite.loadTFLiteModel(message.data.url, options);
