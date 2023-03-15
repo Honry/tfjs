@@ -335,7 +335,12 @@ limitations under the License.
 
     async function showEnvironment() {
       await tf.time(() => tf.add(tf.tensor1d([1]), tf.tensor1d([1])).data());
-      const sortedFeatures = Object.keys(tf.env().features).sort().map(
+      const envFeatures = tf.env().features;
+      // Add 'TFLITE_HAS_WEBNN_SUPPORT' as which is not included in default env features
+      if (!envFeatures.hasOwnProperty('TFLITE_HAS_WEBNN_SUPPORT')) {
+        envFeatures['TFLITE_HAS_WEBNN_SUPPORT'] = hasWebnn();
+      }
+      const sortedFeatures = Object.keys(envFeatures).sort().map(
         name => `  ${name}: ${tf.env().features[name]}`);
       envDiv.innerHTML += `<br/>{<br>${sortedFeatures.join('<br>')}<br>}`;
     }
@@ -1001,6 +1006,10 @@ limitations under the License.
       return state.backend === 'tflite';
     }
 
+    function hasWebnn() {
+      return typeof MLGraphBuilder !== 'undefined';
+    }
+
     async function loadTfliteModel(enableProfiling = false) {
       if (!worker) {
         worker = new Worker('./tflite_worker.js');
@@ -1011,8 +1020,10 @@ limitations under the License.
       }
       state.shouldReloadTfliteModel = false;
       const benchmark = benchmarks[state.benchmark];
+      const useWebnn = state.flags['TFLITE_HAS_WEBNN_SUPPORT'];
 
-      tfliteModel = await benchmark.loadTflite(enableProfiling, state.architecture);
+      tfliteModel = await benchmark.loadTflite(
+          enableProfiling, useWebnn, state.architecture);
     }
 
     function updateModelsDropdown(newValues) {

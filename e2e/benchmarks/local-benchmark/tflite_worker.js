@@ -19,13 +19,20 @@
 // "cross-origin-resource-policy" header.
 importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core/dist/tf-core.js');
 importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu/dist/tf-backend-cpu.js');
-importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/tf-tflite.js');
+// importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/tf-tflite.js');
+importScripts("./tfjs-tflite/tf-tflite.js");
 importScripts('https://cdn.jsdelivr.net/npm/comlink@latest/dist/umd/comlink.js');
 
-tflite.setWasmPath('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/');
+tflite.setWasmPath('./tfjs-tflite/');
+// tflite.setWasmPath('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/');
 
 const tfliteWorkerAPI = {
   async loadTFLiteModel(modelPath, options) {
+    if (options.useWebnn) {
+      options.delegatePath = './webnn_external_delegate_wasm.wasm';
+    }
+    delete options.useWebnn;
+
     const model = await tflite.loadTFLiteModel(modelPath, options);
 
     const wrapped = {
