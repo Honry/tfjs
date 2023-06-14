@@ -29,7 +29,7 @@ tflite.setWasmPath('./tfjs-tflite/');
 const tfliteWorkerAPI = {
   async loadTFLiteModel(modelPath, options) {
     if (options.useWebnn) {
-      options.delegatePath = './webnn_external_delegate_wasm.wasm';
+      options.delegatePath = '../webnn_external_delegate_wasm.wasm';
     }
     delete options.useWebnn;
 
