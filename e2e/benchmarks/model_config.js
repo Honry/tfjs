@@ -104,11 +104,11 @@ const benchmarks = {
           modelArchitecture}_224/classification/5/default/1`;
       return tf.loadGraphModel(url, {fromTFHub: true});
     },
-    loadTflite: async (enableProfiling = false, useWebnn = false,
+    loadTflite: async (enableProfiling = false, useWebnn = false, numThreads,
         modelArchitecture = 'small_075') => {
       const url = `https://tfhub.dev/google/lite-model/imagenet/mobilenet_v3_${
           modelArchitecture}_224/classification/5/metadata/1`;
-      const options = {enableProfiling, useWebnn};
+      const options = {enableProfiling, useWebnn, numThreads};
       return await tfliteWorkerAPI.loadTFLiteModel(url, options);
     },
     predictFunc: commonMobileNetPredictFunc,
@@ -136,10 +136,10 @@ const benchmarks = {
     load: async () => {
       throw new Error(`Please set tflite as the backend to run this model.`);
     },
-    loadTflite: async (enableProfiling = false, useWebnn = false) => {
+    loadTflite: async (enableProfiling = false, useWebnn = false, numThreads) => {
       const url =
           'https://tfhub.dev/tensorflow/lite-model/mobilenet_v2_1.0_224/1/metadata/1';
-      const options = {enableProfiling, useWebnn};
+      const options = {enableProfiling, useWebnn, numThreads};
       return await tfliteWorkerAPI.loadTFLiteModel(url, options);
     },
     predictFunc: commonMobileNetPredictFunc,
@@ -508,8 +508,8 @@ const benchmarks = {
     load: async () => {
       return loadModelByUrlWithState(state.modelUrl, {}, state);
     },
-    loadTflite: async (enableProfiling = false, useWebnn = false) => {
-      const options = {enableProfiling, useWebnn};
+    loadTflite: async (enableProfiling = false, useWebnn = false, numThreads) => {
+      const options = {enableProfiling, useWebnn, numThreads};
       return await tfliteWorkerAPI.loadTFLiteModel(state.modelUrl, options);
     },
     predictFunc: () => {

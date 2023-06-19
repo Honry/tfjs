@@ -40,6 +40,10 @@ if (tf.engine().backendNames().includes('webgpu')) {
     ['WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE', 'KEEP_INTERMEDIATE_TENSORS'];
 }
 
+if (hasWebnn()) {
+  BACKEND_FLAGS_MAP['tflite'].push('NUM_THREADS');
+}
+
 const TUNABLE_FLAG_NAME_MAP = {
   PROD: 'production mode',
   WEBGL_VERSION: 'webgl version',
@@ -55,6 +59,7 @@ const TUNABLE_FLAG_NAME_MAP = {
   CHECK_COMPUTATION_FOR_ERRORS: 'Check each op result',
   KEEP_INTERMEDIATE_TENSORS: 'Print intermediate tensors',
   TFLITE_HAS_WEBNN_SUPPORT: 'webnn delegate',
+  NUM_THREADS: 'num threads',
 };
 if (tf.engine().backendNames().includes('webgpu')) {
   TUNABLE_FLAG_NAME_MAP['WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE'] =
@@ -188,7 +193,10 @@ async function initDefaultValueMap() {
       const flag = BACKEND_FLAGS_MAP[backend][index];
       try {
         if (backend === 'tflite') {
-          TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag] = hasWebnn();
+          if (flag == 'TFLITE_HAS_WEBNN_SUPPORT')
+            TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag] = hasWebnn();
+          if (flag == 'NUM_THREADS')
+            TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag] = 1;
         } else {
           TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag] = await tf.env().getAsync(flag);
         }

@@ -962,6 +962,8 @@ limitations under the License.
           showMsg(null);
         }
         if (isTflite()) {
+          state.numProfiles = 0; // Hard code to set numProfiles to 0 as builtin tflite doesn't support profiling.
+          numProfilesController.setValue(0);
           // Remove the "Test correctness" button which doesn't apply to tfjs-tflite.
           correctnessButton.destroy();
           correctnessButton = null;
@@ -1012,7 +1014,7 @@ limitations under the License.
 
     async function loadTfliteModel(enableProfiling = false) {
       if (!worker) {
-        worker = new Worker('./tflite_worker.js');
+        worker = new Worker('./builtin_tflite_worker.js');
         tfliteWorkerAPI = Comlink.wrap(worker);
       }
       if (tfliteModel) {
@@ -1021,9 +1023,9 @@ limitations under the License.
       state.shouldReloadTfliteModel = false;
       const benchmark = benchmarks[state.benchmark];
       const useWebnn = state.flags['TFLITE_HAS_WEBNN_SUPPORT'];
-
+      const numThreads = state.flags['NUM_THREADS'];
       tfliteModel = await benchmark.loadTflite(
-          enableProfiling, useWebnn, state.architecture);
+          enableProfiling, useWebnn, numThreads, state.architecture);
     }
 
     function updateModelsDropdown(newValues) {
