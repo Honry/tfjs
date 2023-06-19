@@ -20,7 +20,6 @@ importScripts('./builtin-tfjs-tflite/tflite_model_runner_cc_simd.js');
 
 const tfliteWorkerAPI = {
   async loadTFLiteModel(modelPath, options) {
-
     // Load WASM module and model.
     const [module, modelArrayBuffer] = await Promise.all([
       tflite_model_runner_ModuleFactory(),
@@ -47,9 +46,17 @@ const tfliteWorkerAPI = {
       throw new Error(`Failed to create TFLiteWebModelRunner: ${modelRunner.errorMessage()}`);
     }
     const inputs = callAndDelete(modelRunner.GetInputs(), (results) => convertCppVectorToArray(results));
+    const tfliteInputs = [];
+    for (let input of inputs) {
+      tfliteInputs.push({
+        dtype: input.dataType,
+        id: input.id,
+        name: input.name,
+        shape: input.shape.split(',').map((i)=> {return parseInt(i);})});
+    }
     const outputs = callAndDelete(modelRunner.GetOutputs(), (results) => convertCppVectorToArray(results));
     const wrapped = {
-      inputs: inputs,
+      inputs: tfliteInputs,
       getProfilingResults() {
         // Builtin delegate doesn't support profiling.
         throw new Error(`Builtin tfjs-tflite doesn't support profiling.`);

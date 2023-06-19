@@ -106,8 +106,7 @@ const benchmarks = {
     },
     loadTflite: async (enableProfiling = false, useWebnn = false, numThreads,
         modelArchitecture = 'small_075') => {
-      const url = `https://tfhub.dev/google/lite-model/imagenet/mobilenet_v3_${
-          modelArchitecture}_224/classification/5/metadata/1`;
+      const url = `./mobilenetv3_${modelArchitecture}.tflite`;
       const options = {enableProfiling, useWebnn, numThreads};
       return await tfliteWorkerAPI.loadTFLiteModel(url, options);
     },
@@ -137,8 +136,7 @@ const benchmarks = {
       throw new Error(`Please set tflite as the backend to run this model.`);
     },
     loadTflite: async (enableProfiling = false, useWebnn = false, numThreads) => {
-      const url =
-          'https://tfhub.dev/tensorflow/lite-model/mobilenet_v2_1.0_224/1/metadata/1';
+      const url = './mobilenetv2.tflite';
       const options = {enableProfiling, useWebnn, numThreads};
       return await tfliteWorkerAPI.loadTFLiteModel(url, options);
     },
