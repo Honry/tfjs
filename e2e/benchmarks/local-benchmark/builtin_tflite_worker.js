@@ -16,7 +16,12 @@
  */
 
 importScripts('https://cdn.jsdelivr.net/npm/comlink@latest/dist/umd/comlink.js');
-importScripts('./builtin-tfjs-tflite/tflite_model_runner_cc_simd.js');
+if (typeof SharedArrayBuffer != 'undefined') {
+  importScripts('./tflite_model_runner_cc_threaded_simd.js');
+} else {
+  importScripts('./tflite_model_runner_cc_simd.js');
+}
+
 
 const tfliteWorkerAPI = {
   async loadTFLiteModel(modelPath, options) {
@@ -35,7 +40,7 @@ const tfliteWorkerAPI = {
       offset,
       modelBytes.length,
       {
-        numThreads: 1,
+        numThreads: options.numThreads,
         enableWebNNDelegate: options.useWebnn,
         webNNDevicePreference: 2,
         webNNNumThreads: options.numThreads,

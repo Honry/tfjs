@@ -33,15 +33,12 @@ const BACKEND_FLAGS_MAP = {
   ],
   tflite: [
     'TFLITE_HAS_WEBNN_SUPPORT',
+    'NUM_THREADS',
   ],
 };
 if (tf.engine().backendNames().includes('webgpu')) {
   BACKEND_FLAGS_MAP['webgpu'] =
     ['WEBGPU_DEFERRED_SUBMIT_BATCH_SIZE', 'KEEP_INTERMEDIATE_TENSORS'];
-}
-
-if (hasWebnn()) {
-  BACKEND_FLAGS_MAP['tflite'].push('NUM_THREADS');
 }
 
 const TUNABLE_FLAG_NAME_MAP = {
