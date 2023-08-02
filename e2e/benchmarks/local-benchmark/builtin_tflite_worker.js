@@ -79,7 +79,6 @@ const tfliteWorkerAPI = {
           inputBuffer.set(inputData[i]);
         }
         modelRunner.Infer();
-
         // Get output data.
         for (let output of outputs) {
           output.data();

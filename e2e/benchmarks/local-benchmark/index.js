@@ -191,7 +191,7 @@ async function initDefaultValueMap() {
       try {
         if (backend === 'tflite') {
           if (flag == 'TFLITE_HAS_WEBNN_SUPPORT')
-            TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag] = hasWebnn();
+            TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag] = useWebNN;
           if (flag == 'NUM_THREADS')
             TUNABLE_FLAG_DEFAULT_VALUE_MAP[flag] = 1;
         } else {

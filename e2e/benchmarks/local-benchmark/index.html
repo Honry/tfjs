@@ -92,10 +92,11 @@ limitations under the License.
 
     let urlState = null;
     let runTimes = 50;
-    let profileTimes = 1;
+    let profileTimes = 0;
     let warmupTimes = 1;
     // Default do not run any task.
     let task = '';
+    let useWebNN = true;
     function getURLState(url) {
       let params = new URLSearchParams(url);
       const keys = [...params.keys()];
@@ -112,6 +113,9 @@ limitations under the License.
       }
       if (params.has('task')) {
         task = params.get('task');
+      }
+      if (params.has('useWebNN')) {
+        useWebNN = params.get('useWebNN') == 'false' ? false : true;
       }
       return params;
     }
@@ -813,7 +817,7 @@ limitations under the License.
 
       if (urlState && urlState.has('backend'))
         state.backend = urlState.get('backend');
-      await tf.setBackend(state.backend);
+      await tf.setBackend('wasm');
 
       const modelFolder = gui.addFolder('Benchmark');
       let modelUrlController = null;
